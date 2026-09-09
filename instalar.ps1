@@ -108,14 +108,15 @@ function Install-ScheduledTask {
     # confiavel neste sistema, entao o usamos apenas como leitura e aprimoramento.
     $runner = Join-Path $InstallDir 'executar.ps1'
     $powerShellExe = Join-Path $PSHOME 'powershell.exe'
-    $taskCommand = "`"$powerShellExe`" -NoProfile -File `"$runner`""
+    # Para schtasks: escape aspas com ^" (batch escape)
+    $taskCommandForSchtasks = "^`"$powerShellExe^`" -NoProfile -File ^`"$runner^`""
 
     if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
         Write-Host 'Tarefa agendada ja existente; sera recriada com a definicao correta.' -ForegroundColor Yellow
         Remove-TaskIfPresent
     }
 
-    & schtasks.exe /create /f /tn "$TaskName" /tr "$taskCommand" /sc daily /st 02:00 /ru SYSTEM /rl HIGHEST /np | Out-Null
+    & schtasks.exe /create /f /tn "$TaskName" /tr $taskCommandForSchtasks /sc daily /st 02:00 /ru SYSTEM /rl HIGHEST /np | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw 'Falha ao criar a tarefa agendada via schtasks.'
     }

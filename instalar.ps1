@@ -103,23 +103,20 @@ function Remove-TaskIfPresent {
 }
 
 function Install-ScheduledTask {
-    # Preferimos schtasks.exe para a criacao: e o caminho classico e deterministico.
-    # O modulo ScheduledTasks (Register-ScheduledTask) nao persistiu de forma
-    # confiavel neste sistema, entao o usamos apenas como leitura e aprimoramento.
     $runner = Join-Path $InstallDir 'executar.ps1'
     $powerShellExe = Join-Path $PSHOME 'powershell.exe'
-    # Para schtasks: escape aspas com ^" (batch escape)
-    $taskCommandForSchtasks = "^`"$powerShellExe^`" -NoProfile -File ^`"$runner^`""
 
     if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
         Write-Host 'Tarefa agendada ja existente; sera recriada com a definicao correta.' -ForegroundColor Yellow
         Remove-TaskIfPresent
     }
 
-    & schtasks.exe /create /f /tn "$TaskName" /tr $taskCommandForSchtasks /sc daily /st 02:00 /ru SYSTEM /rl HIGHEST /np | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Falha ao criar a tarefa agendada via schtasks.'
-    }
+    # Usar Register-ScheduledTask em lugar de schtasks.exe (mais confiavel)
+    $action = New-ScheduledTaskAction -Execute $powerShellExe -Argument "-NoProfile -File `"$runner`""
+    $trigger = New-ScheduledTaskTrigger -Daily -At '02:00'
+    $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 8) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 15)
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 
     # Tenta aplicar opcoes de resiliencia (reinicio em falha, comecar se perder o horario).
     # Se nao funcionar, a tarefa basica (diaria 02:00 como SYSTEM) ja esta valida.

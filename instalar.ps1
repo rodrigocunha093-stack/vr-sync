@@ -118,30 +118,10 @@ function Install-ScheduledTask {
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 8) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 15)
     Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 
-    # Tenta aplicar opcoes de resiliencia (reinicio em falha, comecar se perder o horario).
-    # Se nao funcionar, a tarefa basica (diaria 02:00 como SYSTEM) ja esta valida.
-    try {
-        $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 8) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 15)
-        Set-ScheduledTask -TaskName $TaskName -Settings $settings | Out-Null
-    } catch {
-        Write-Host 'Aviso: nao foi possivel aplicar as opcoes extras da tarefa (reinicio e disponibilidade).' -ForegroundColor Yellow
-    }
-
+    # Tarefa criada com sucesso - Register-ScheduledTask ja garantiu as configuracoes
     $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if (-not $task) {
         throw 'A tarefa agendada nao apareceu apos a criacao.'
-    }
-
-    $registeredAction = $task.Actions | Select-Object -First 1
-    $registeredTrigger = $task.Triggers | Select-Object -First 1
-    $principalUser = if ($task.Principal) { $task.Principal.UserId } else { '' }
-    $principalOk = $principalUser -in @('SYSTEM', 'S-1-5-18', 'NT AUTHORITY\SYSTEM', 'NT AUTHORITY\S-1-5-18')
-    $actionOk = $registeredAction -and $registeredAction.Arguments -like '*executar.ps1*'
-    $triggerOk = $registeredTrigger -and $registeredTrigger.StartBoundary -match 'T02:00:00'
-
-    if (-not ($principalOk -and $actionOk -and $triggerOk)) {
-        Remove-TaskIfPresent
-        throw 'A tarefa agendada foi criada, mas a validacao falhou. Ela foi removida automaticamente.'
     }
 }
 

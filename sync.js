@@ -371,6 +371,87 @@ async function extrairVendasPromocao(filtros) {
   `, [config.lojaVrId, desde]);
 }
 
+async function extrairMargem(filtros) {
+  const desde = filtros?.vendas_desde || new Date(Date.now() - config.diasVendas * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  log(`Extraindo margem realizada desde ${desde}...`);
+  return query(`
+    SELECT
+      vi.id_produto,
+      v.data,
+      p.mercadologico1,
+      SUM(vi.quantidade) AS quantidade,
+      SUM(vi.valortotal) AS receita,
+      SUM(vi.valordesconto) AS desconto,
+      SUM(vi.quantidade * vi.custocomimposto) AS custo_total,
+      SUM(vi.valortotal) - SUM(vi.quantidade * vi.custocomimposto) AS margem_bruta,
+      CASE WHEN SUM(vi.valortotal) > 0
+        THEN ROUND(((SUM(vi.valortotal) - SUM(vi.quantidade * vi.custocomimposto)) / SUM(vi.valortotal) * 100)::numeric, 2)
+        ELSE 0
+      END AS margem_bruta_pct,
+      SUM(vi.quantidade * vi.custosemimposto) AS custo_liquido,
+      SUM(vi.valortotal) - SUM(vi.quantidade * vi.custosemimposto) AS margem_liquida,
+      CASE WHEN SUM(vi.valortotal) > 0
+        THEN ROUND(((SUM(vi.valortotal) - SUM(vi.quantidade * vi.custosemimposto)) / SUM(vi.valortotal) * 100)::numeric, 2)
+        ELSE 0
+      END AS margem_liquida_pct,
+      BOOL_OR(vi.oferta) AS em_oferta,
+      COUNT(*) AS num_cupons
+    FROM pdv.venda v
+    JOIN pdv.vendaitem vi ON vi.id_venda = v.id
+    LEFT JOIN public.produto p ON p.id = vi.id_produto
+    WHERE v.data >= $1::date
+      AND v.id_loja = $2
+      AND vi.cancelado = false
+      AND vi.quantidade > 0
+    GROUP BY vi.id_produto, v.data, p.mercadologico1
+    ORDER BY v.data DESC, vi.id_produto
+  `, [desde, config.lojaVrId]);
+}
+
+async function extrairPrecos() {
+  log('Extraindo precos e margem teorica...');
+  const particao = await detectarParticaoEstoque();
+  if (!particao) {
+    log('  AVISO: sem particao de estoque para cruzar custo');
+    return [];
+  }
+  log(`  Usando particao: ${particao}`);
+  return query(`
+    SELECT
+      p.id AS id_produto,
+      p.descricaocompleta AS descricao,
+      p.precovenda,
+      p.mercadologico1,
+      e.custocomimposto,
+      e.customediocomimposto,
+      e.custosemimposto,
+      e.customediosemimposto,
+      CASE WHEN COALESCE(p.precovenda, 0) > 0 AND COALESCE(e.custocomimposto, 0) > 0
+        THEN ROUND(((p.precovenda - e.custocomimposto) / p.precovenda * 100)::numeric, 2)
+        ELSE NULL
+      END AS margem_teorica_pct,
+      CASE WHEN COALESCE(p.precovenda, 0) > 0 AND COALESCE(e.custocomimposto, 0) > 0
+        THEN ROUND((p.precovenda - e.custocomimposto)::numeric, 2)
+        ELSE NULL
+      END AS margem_teorica_rs,
+      e.estoque,
+      e.quantidadevendamedia AS venda_media_diaria,
+      e.data AS data_estoque
+    FROM public.produto p
+    JOIN (
+      SELECT DISTINCT ON (id_produto)
+        id_produto, custocomimposto, customediocomimposto,
+        custosemimposto, customediosemimposto,
+        estoque, quantidadevendamedia, data
+      FROM public.${particao}
+      WHERE id_loja = $1
+      ORDER BY id_produto, data DESC
+    ) e ON e.id_produto = p.id
+    WHERE COALESCE(p.precovenda, 0) > 0 OR COALESCE(e.estoque, 0) > 0
+    ORDER BY p.id
+  `, [config.lojaVrId]);
+}
+
 async function extrairEstoqueHistorico() {
   log('Extraindo historico de estoque...');
   const agora = new Date();
@@ -447,6 +528,8 @@ const EXTRATORES = {
   compras: (f) => extrairCompras(f),
   vendas_promocao: (f) => extrairVendasPromocao(f),
   estoque_historico: (f) => extrairEstoqueHistorico(),
+  margem: (f) => extrairMargem(f),
+  precos: (f) => extrairPrecos(),
 };
 
 // ── MAIN ────────────────────────────────────────────────────────────

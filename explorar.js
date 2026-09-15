@@ -28,6 +28,8 @@ async function main() {
     produtos [termo]       Busca produtos por descricao
     estoque <id_produto>   Estoque atual de um produto
     vendas <id_produto>    Vendas recentes (30 dias)
+    margem <id_produto>    Margem realizada (30 dias)
+    precos [termo]         Precos atuais com margem teorica
     `);
     process.exit(0);
   }
@@ -146,6 +148,72 @@ async function main() {
           ORDER BY v.data DESC, v.id_loja
           LIMIT 30
         `, [idProduto]);
+        console.table(rows);
+        break;
+      }
+
+      case 'margem': {
+        const idProduto = parseInt(args[1]);
+        if (!idProduto) { console.error('Uso: node explorar.js margem <id_produto>'); break; }
+        const rows = await query(`
+          SELECT v.data,
+                 SUM(vi.quantidade) AS qtd,
+                 ROUND(SUM(vi.valortotal)::numeric, 2) AS receita,
+                 ROUND(SUM(vi.quantidade * vi.custocomimposto)::numeric, 2) AS custo,
+                 ROUND((SUM(vi.valortotal) - SUM(vi.quantidade * vi.custocomimposto))::numeric, 2) AS margem_rs,
+                 CASE WHEN SUM(vi.valortotal) > 0
+                   THEN ROUND(((SUM(vi.valortotal) - SUM(vi.quantidade * vi.custocomimposto)) / SUM(vi.valortotal) * 100)::numeric, 1)
+                   ELSE 0
+                 END AS margem_pct,
+                 BOOL_OR(vi.oferta) AS oferta
+          FROM pdv.venda v
+          JOIN pdv.vendaitem vi ON vi.id_venda = v.id
+          WHERE vi.id_produto = $1 AND v.data >= CURRENT_DATE - 30
+            AND vi.cancelado = false AND vi.quantidade > 0
+          GROUP BY v.data
+          ORDER BY v.data DESC
+        `, [idProduto]);
+        if (!rows.length) { console.log('Nenhuma venda nos ultimos 30 dias'); break; }
+        console.table(rows);
+        const totalReceita = rows.reduce((s, r) => s + Number(r.receita), 0);
+        const totalCusto = rows.reduce((s, r) => s + Number(r.custo), 0);
+        const margemMedia = totalReceita > 0 ? ((totalReceita - totalCusto) / totalReceita * 100).toFixed(1) : '0';
+        console.log(`\nResumo 30d: Receita R$ ${totalReceita.toFixed(2)} | Custo R$ ${totalCusto.toFixed(2)} | Margem media: ${margemMedia}%`);
+        break;
+      }
+
+      case 'precos': {
+        const termo = args.slice(1).join(' ').toUpperCase();
+        const particoes = await query(`
+          SELECT relname FROM pg_stat_user_tables
+          WHERE schemaname='public' AND relname ~ '^estoque\\d{6}$' AND n_live_tup > 0
+          ORDER BY relname DESC LIMIT 1
+        `);
+        if (!particoes.length) { console.log('Nenhuma particao de estoque encontrada'); break; }
+        const p = particoes[0].relname;
+        const where = termo ? `AND p.descricaocompleta ILIKE $2` : '';
+        const params = termo ? [config.lojaVrId, `%${termo}%`] : [config.lojaVrId];
+        const rows = await query(`
+          SELECT p.id, LEFT(p.descricaocompleta, 40) AS descricao,
+                 ROUND(p.precovenda::numeric, 2) AS preco,
+                 ROUND(e.custocomimposto::numeric, 2) AS custo,
+                 CASE WHEN COALESCE(p.precovenda, 0) > 0 AND COALESCE(e.custocomimposto, 0) > 0
+                   THEN ROUND(((p.precovenda - e.custocomimposto) / p.precovenda * 100)::numeric, 1)
+                   ELSE NULL
+                 END AS margem_pct,
+                 e.estoque::int
+          FROM public.produto p
+          JOIN (
+            SELECT DISTINCT ON (id_produto) id_produto, custocomimposto, estoque
+            FROM public.${p}
+            WHERE id_loja = $1
+            ORDER BY id_produto, data DESC
+          ) e ON e.id_produto = p.id
+          WHERE (COALESCE(p.precovenda, 0) > 0 OR COALESCE(e.estoque, 0) > 0) ${where}
+          ORDER BY p.id
+          LIMIT 50
+        `, params);
+        if (!rows.length) { console.log('Nenhum produto encontrado'); break; }
         console.table(rows);
         break;
       }

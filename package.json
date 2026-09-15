@@ -1,0 +1,25 @@
+{
+  "name": "vr-sync",
+  "version": "3.0.0",
+  "description": "Sincronizador de dados do banco VR (PostgreSQL) para projetos externos via API REST",
+  "main": "sync.js",
+  "scripts": {
+    "verify": "node verificar.js",
+    "sync": "node sync.js",
+    "sync:produtos": "node sync.js --only produtos",
+    "sync:vendas": "node sync.js --only vendas",
+    "sync:estoque": "node sync.js --only estoque",
+    "sync:ofertas": "node sync.js --only ofertas",
+    "sync:compras": "node sync.js --only compras",
+    "sync:tudo": "node sync.js --all",
+    "vigia": "node vigia.js",
+    "explorar": "node explorar.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "pg": "^8.13.0"
+  }
+}

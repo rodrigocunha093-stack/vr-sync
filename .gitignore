@@ -1,0 +1,14 @@
+target/
+*.class
+*.jar
+*.war
+.idea/
+*.iml
+.settings/
+.project
+.classpath
+config.json
+.vr-sync-version
+update.bat
+update.log
+*.update

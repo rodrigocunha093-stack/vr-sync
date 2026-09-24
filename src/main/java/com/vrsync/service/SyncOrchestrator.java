@@ -173,7 +173,7 @@ public class SyncOrchestrator {
             arr.forEach(e -> list.add(e.getAsString()));
             return list;
         }
-        return List.of("lojas", "mercadologico", "fornecedores", "produtos", "vendas", "estoque", "ofertas", "compras", "vendas_promocao", "cupom_itens", "margem", "precos");
+        return List.of("lojas", "mercadologico", "fornecedores", "produtos", "vendas", "estoque", "ofertas", "compras", "vendas_promocao", "cupom_itens", "margem", "precos", "precificados");
     }
 
     private String getDesde(JsonObject serverConfig) {

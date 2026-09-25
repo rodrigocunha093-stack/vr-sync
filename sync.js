@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 
+const VERSION = '3.2.0';
+
 const pool = new Pool(config.db);
 
 function log(msg) { console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`); }
@@ -24,6 +26,59 @@ function salvarLocal(nome, dados) {
 
 function esperar(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ── AUTO-UPDATE ────────────────────────────────────────────────────
+
+async function verificarAtualizacao() {
+  const url = `${config.api.url}/api/sync/update?version=${VERSION}&tipo=node`;
+  log(`Verificando atualizacao (v${VERSION})...`);
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${config.api.token}` },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!resp.ok) { log('  Servidor de update indisponivel'); return false; }
+    const info = JSON.parse(await resp.text());
+
+    if (!info.atualizar) { log(`  Versao atual (v${VERSION}) esta OK`); return false; }
+
+    log(`  Nova versao disponivel: v${info.versao}. Baixando...`);
+    const dlResp = await fetch(`${config.api.url}/api/sync/update?tipo=node&download=1`, {
+      headers: { Authorization: `Bearer ${config.api.token}` },
+    });
+    if (!dlResp.ok) { log('  Erro ao baixar atualizacao'); return false; }
+
+    const bundle = JSON.parse(await dlResp.text());
+    if (!bundle.arquivos) { log('  Bundle sem arquivos'); return false; }
+
+    let atualizados = 0;
+    for (const [nome, conteudoB64] of Object.entries(bundle.arquivos)) {
+      if (!/^[a-zA-Z0-9_.-]+\.js$/.test(nome)) continue;
+      const destino = path.join(__dirname, nome);
+      const conteudo = Buffer.from(conteudoB64, 'base64').toString('utf8');
+      const temporario = `${destino}.update`;
+      fs.writeFileSync(temporario, conteudo, 'utf8');
+      fs.renameSync(temporario, destino);
+      log(`  Atualizado: ${nome}`);
+      atualizados++;
+    }
+
+    if (atualizados > 0) {
+      log(`  ${atualizados} arquivo(s) atualizado(s) para v${bundle.versao}. Efeito no proximo ciclo.`);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    log(`  Auto-update falhou (nao-critico): ${err.message}`);
+    return false;
+  }
 }
 
 // ── BUSCAR CONFIG DO SERVIDOR ───────────────────────────────────────
@@ -587,12 +642,15 @@ const EXTRATORES = {
 
 async function main() {
   log('======================================================');
-  log('  VR Sync v3.0 - Pull-Push Centralizado');
+  log(`  VR Sync v${VERSION} - Pull-Push Centralizado`);
   log('======================================================');
   log(`Banco: ${config.db.host}:${config.db.port}/${config.db.database}`);
   log(`Loja VR: ${config.lojaVrId}`);
   log(`Loja central: ${config.codigoLoja}`);
   log(`API: ${config.api.url}`);
+  log('');
+
+  await verificarAtualizacao();
   log('');
 
   await pool.query('SELECT 1');

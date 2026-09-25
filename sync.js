@@ -517,6 +517,55 @@ async function extrairEstoqueHistorico() {
   return dados;
 }
 
+async function extrairCupomItens(filtros) {
+  const desde = filtros?.cupom_itens_desde || filtros?.vendas_desde || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  log(`Extraindo cupom_itens desde ${desde}...`);
+  return query(`
+    SELECT v.id AS id_venda, vi.id AS id_vendaitem,
+           v.numerocupom,
+           v.data AS datavenda,
+           vi.id_produto, vi.quantidade,
+           vi.precovenda, vi.valortotal AS valoritem
+    FROM pdv.venda v
+    JOIN pdv.vendaitem vi ON vi.id_venda = v.id
+    WHERE v.data >= $1::date
+      AND v.id_loja = $2
+      AND vi.cancelado = false
+    ORDER BY v.id
+  `, [desde, config.lojaVrId]);
+}
+
+async function extrairPrecificados() {
+  log('Extraindo precificados (snapshot diario precos/margens)...');
+  return query(`
+    SELECT pc.id_produto,
+           pc.id_loja,
+           CURRENT_DATE AS data,
+           pc.precovenda,
+           pc.custocomimposto,
+           pc.customediocomimposto,
+           pc.custosemimposto,
+           pc.customediosemimposto,
+           CASE WHEN pc.custocomimposto > 0 AND pc.precovenda > 0
+                THEN ROUND(((pc.precovenda - pc.custocomimposto) / pc.precovenda * 100)::numeric, 2)
+                ELSE 0 END AS margem_bruta_pct,
+           CASE WHEN pc.custocomimposto > 0
+                THEN ROUND((pc.precovenda - pc.custocomimposto)::numeric, 2)
+                ELSE 0 END AS margem_bruta_rs,
+           CASE WHEN pc.custosemimposto > 0 AND pc.precovenda > 0
+                THEN ROUND(((pc.precovenda - pc.custosemimposto) / pc.precovenda * 100)::numeric, 2)
+                ELSE 0 END AS margem_liquida_pct,
+           CASE WHEN pc.custosemimposto > 0
+                THEN ROUND((pc.precovenda - pc.custosemimposto)::numeric, 2)
+                ELSE 0 END AS margem_liquida_rs,
+           pc.estoque
+    FROM public.produtocomplemento pc
+    WHERE pc.id_loja = $1
+      AND pc.precovenda > 0
+      AND pc.custocomimposto > 0
+  `, [config.lojaVrId]);
+}
+
 const EXTRATORES = {
   lojas: (f) => extrairLojas(),
   mercadologico: (f) => extrairMercadologico(),
@@ -527,9 +576,11 @@ const EXTRATORES = {
   ofertas: (f) => extrairOfertas(),
   compras: (f) => extrairCompras(f),
   vendas_promocao: (f) => extrairVendasPromocao(f),
+  cupom_itens: (f) => extrairCupomItens(f),
   estoque_historico: (f) => extrairEstoqueHistorico(),
   margem: (f) => extrairMargem(f),
   precos: (f) => extrairPrecos(),
+  precificados: (f) => extrairPrecificados(),
 };
 
 // ── MAIN ────────────────────────────────────────────────────────────

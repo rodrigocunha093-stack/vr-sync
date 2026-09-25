@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 
-const VERSION = '3.2.0';
+const VERSION = '4.4.0';
 
 const pool = new Pool(config.db);
 

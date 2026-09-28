@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 public class AutoUpdater {
     private static final Logger log = LoggerFactory.getLogger(AutoUpdater.class);
-    public static final String VERSAO_ATUAL = "4.5.8";
+    public static final String VERSAO_ATUAL = "4.5.9";
     private static final String VERSION_FILE = ".vr-sync-version";
 
     public boolean verificar(String apiUrl, String apiToken) {

@@ -71,7 +71,7 @@ public class ApiClient {
     public int enviarDados(String loja, String modulo, List<Map<String, Object>> dados, BatchProgress progress) {
         String url = this.apiUrl + "/api/sync/" + modulo;
         int total = dados.size();
-        int batchSize = total > 50000 ? 1000 : 2000;
+        int batchSize = total > 50000 ? BATCH_SIZE_LARGE : BATCH_SIZE;
         int lotes = (int)Math.ceil((double)total / (double)batchSize);
         int maxRetries = 3;
         int enviados = 0;

@@ -55,6 +55,9 @@ public class SyncOrchestrator {
         this.status = "Sincronizando...";
         Instant inicio = Instant.now();
         ApiClient api = new ApiClient(config.getApiUrl(), config.getApiToken());
+        if (config.getCnpj() != null) {
+            api.setCnpj(config.getCnpj());
+        }
         try {
             this.status = "Buscando configuracao...";
             JsonObject serverConfig = api.buscarConfig(config.getLoja());

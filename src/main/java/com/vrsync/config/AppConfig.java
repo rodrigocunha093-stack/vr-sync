@@ -28,6 +28,7 @@ public class AppConfig {
     private String dbPassword = "";
     private String dbTipo = "mssql";
     private int lojaVrId = 0;
+    private String cnpj = null;
     private String senha = null;
     private Path configPath;
     private static final List<Path> CONFIG_LOCATIONS = List.of(Path.of(System.getenv("APPDATA") != null ? System.getenv("APPDATA") : ".", "VR-Sync", "config.json"), Path.of(System.getProperty("user.dir"), "config.json"), Path.of(System.getProperty("user.home"), "VR-Sync", "config.json"));
@@ -79,13 +80,16 @@ public class AppConfig {
             if (root.has("lojaVrId")) {
                 cfg.lojaVrId = root.get("lojaVrId").getAsInt();
             }
+            if (root.has("cnpj") && !root.get("cnpj").isJsonNull()) {
+                cfg.cnpj = root.get("cnpj").getAsString().replaceAll("\\D", "");
+            }
             if (root.has("senha") && !root.get("senha").isJsonNull()) {
                 cfg.senha = root.get("senha").getAsString();
             }
             if (cfg.dbUser.equals("postgres") || cfg.dbPort == 5432) {
                 cfg.dbTipo = "postgres";
             }
-            log.info("Loja: {} (VR ID: {})", (Object)cfg.loja, (Object)cfg.lojaVrId);
+            log.info("Loja: {} (VR ID: {}) CNPJ: {}", (Object)cfg.loja, (Object)cfg.lojaVrId, (Object)(cfg.cnpj != null ? cfg.cnpj : "nao configurado"));
             log.info("API: {}", (Object)cfg.apiUrl);
             log.info("DB: {}:{}/{} ({})", cfg.dbServer, cfg.dbPort, cfg.dbName, cfg.dbTipo);
             return cfg;
@@ -141,6 +145,10 @@ public class AppConfig {
 
     public int getLojaVrId() {
         return this.lojaVrId;
+    }
+
+    public String getCnpj() {
+        return this.cnpj;
     }
 
     public String getSenha() {

@@ -24,12 +24,17 @@ public class ApiClient {
     private static final Gson gson = new GsonBuilder().serializeNulls().create();
     private final String apiUrl;
     private final String apiToken;
+    private String cnpj;
     private volatile HttpClient httpClient;
 
     public ApiClient(String apiUrl, String apiToken) {
         this.apiUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
         this.apiToken = apiToken;
         this.httpClient = criarHttpClient();
+    }
+
+    public void setCnpj(String cnpj) {
+        this.cnpj = cnpj;
     }
 
     private static HttpClient criarHttpClient() {
@@ -85,6 +90,9 @@ public class ApiClient {
             }
             JsonObject payload = new JsonObject();
             payload.addProperty("loja", loja);
+            if (this.cnpj != null && !this.cnpj.isEmpty()) {
+                payload.addProperty("cnpj", this.cnpj);
+            }
             payload.add("dados", gson.toJsonTree(batch));
             boolean loteOk = false;
             for (int tentativa = 1; tentativa <= maxRetries; ++tentativa) {

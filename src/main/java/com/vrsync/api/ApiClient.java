@@ -19,8 +19,8 @@ import org.slf4j.LoggerFactory;
 
 public class ApiClient {
     private static final Logger log = LoggerFactory.getLogger(ApiClient.class);
-    private static final int BATCH_SIZE = 2000;
-    private static final int BATCH_SIZE_LARGE = 1000;
+    private static final int BATCH_SIZE = 500;
+    private static final int BATCH_SIZE_LARGE = 500;
     private static final Gson gson = new GsonBuilder().serializeNulls().create();
     private final String apiUrl;
     private final String apiToken;

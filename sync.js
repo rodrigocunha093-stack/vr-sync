@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 
-const VERSION = '4.4.0';
+const VERSION = '4.5.0';
 
 const pool = new Pool(config.db);
 
@@ -590,6 +590,58 @@ async function extrairCupomItens(filtros) {
   `, [desde, config.lojaVrId]);
 }
 
+async function extrairPrecificadosLog() {
+  log('Extraindo precificados_log (historico de alteracoes de preco)...');
+  return query(`
+    SELECT
+      lp.id AS id_alteracao,
+      lp.id_produto,
+      p.descricaocompleta AS descricao_produto,
+      p.codigo_interno AS codigo_produto,
+      lp.datahora AS data_hora_alteracao,
+      lp.datamovimento AS data_movimento,
+      CASE
+        WHEN lp.observacao ILIKE '%CANCELAMENTO OFERTA%' THEN 'CANCELAMENTO_OFERTA'
+        WHEN lp.observacao ILIKE '%INICIO OFERTA%' THEN 'OFERTA'
+        WHEN lp.observacao ILIKE '%ATACAREJO:%' THEN 'ATACAREJO'
+        WHEN lp.observacao ILIKE '%PROMOÇÃO%' THEN 'PROMOCAO'
+        WHEN lp.observacao ILIKE '%REAJUSTE%' THEN 'REAJUSTE'
+        WHEN lp.observacao ILIKE '%CADASTRO%' THEN 'CADASTRO'
+        WHEN lp.observacao IS NOT NULL AND lp.observacao != '' THEN 'ADMINISTRADO'
+        ELSE 'INDEFINIDO'
+      END AS tipo_alteracao,
+      lp.observacao AS observacao_original,
+      lp.precovendaanterior AS preco_venda_anterior,
+      lp.precovenda AS preco_venda_novo,
+      ROUND((lp.precovenda - lp.precovendaanterior)::numeric, 2) AS diferenca_preco_rs,
+      ROUND(((lp.precovenda - lp.precovendaanterior) / NULLIF(lp.precovendaanterior, 0) * 100)::numeric, 2) AS variacao_preco_pct,
+      CASE WHEN lp.precovenda > lp.precovendaanterior THEN 'AUMENTO'
+           WHEN lp.precovenda < lp.precovendaanterior THEN 'REDUCAO'
+           ELSE 'SEM_ALTERACAO' END AS direcao_alteracao,
+      CASE WHEN ABS((lp.precovenda - lp.precovendaanterior) / NULLIF(lp.precovendaanterior, 0) * 100) > 10 THEN 'ALTA'
+           WHEN ABS((lp.precovenda - lp.precovendaanterior) / NULLIF(lp.precovendaanterior, 0) * 100) > 5 THEN 'MEDIA'
+           ELSE 'BAIXA' END AS impacto_preco,
+      lp.custocomimposto AS custo_com_imposto,
+      lp.custosemimposto AS custo_sem_imposto,
+      lp.margemliquidaanterior AS margem_liquida_anterior,
+      lp.margemliquida AS margem_liquida_nova,
+      lp.margemsbcustoanterior AS margem_sobre_custo_anterior,
+      lp.margemsbcusto AS margem_sobre_custo_nova,
+      lp.margemsbvendaanterior AS margem_sobre_venda_anterior,
+      lp.margemsbvenda AS margem_sobre_venda_nova,
+      lp.margembrutaanterior AS margem_bruta_anterior,
+      lp.margembruta AS margem_bruta_nova,
+      lp.imediato,
+      lp.id_usuario
+    FROM public.logpreco lp
+    LEFT JOIN public.produto p ON p.id = lp.id_produto
+    WHERE lp.datahora >= CURRENT_DATE - INTERVAL '30 days'
+      AND lp.id_loja = $1
+      AND lp.precovenda IS DISTINCT FROM lp.precovendaanterior
+    ORDER BY lp.datahora DESC
+  `, [config.lojaVrId]);
+}
+
 async function extrairPrecificados() {
   log('Extraindo precificados (snapshot diario precos/margens)...');
   return query(`
@@ -636,6 +688,7 @@ const EXTRATORES = {
   margem: (f) => extrairMargem(f),
   precos: (f) => extrairPrecos(),
   precificados: (f) => extrairPrecificados(),
+  precificados_log: (f) => extrairPrecificadosLog(),
 };
 
 // ── MAIN ────────────────────────────────────────────────────────────

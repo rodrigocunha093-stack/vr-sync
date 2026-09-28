@@ -1,19 +1,21 @@
 const fs = require('fs');
 const path = require('path');
-const config = require('./config');
+
+const API_URL = 'https://encarte-inteligente.vercel.app';
+const API_TOKEN = 'ByEmP1+3oatIvT7716o0n4jjcNb9NdceUNfhgMWbWVA=';
 
 function log(msg) { console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`); }
 
 async function main() {
   log('=== VR-Sync Atualizador ===');
-  log(`API: ${config.api.url}`);
+  log(`API: ${API_URL}`);
   log('');
 
-  const url = `${config.api.url}/api/sync/update?tipo=node&download=1`;
+  const url = `${API_URL}/api/sync/update?tipo=node&download=1`;
   log('Baixando bundle atualizado...');
 
   const resp = await fetch(url, {
-    headers: { Authorization: `Bearer ${config.api.token}` },
+    headers: { Authorization: `Bearer ${API_TOKEN}` },
   });
 
   if (!resp.ok) {

@@ -99,7 +99,7 @@ public class TrayManager {
         MenuItem sobreItem = new MenuItem("Sobre");
         sobreItem.addActionListener(e -> {
             if (this.trayIcon != null) {
-                this.trayIcon.displayMessage("VR Sync", "VR Sync v4.5.4\nCliente de sincronizacao\nEncarte Inteligente", TrayIcon.MessageType.INFO);
+                this.trayIcon.displayMessage("VR Sync", "VR Sync v4.5.5\nCliente de sincronizacao\nEncarte Inteligente", TrayIcon.MessageType.INFO);
             }
         });
         MenuItem sairItem = new MenuItem("Sair");

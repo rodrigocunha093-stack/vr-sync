@@ -34,7 +34,7 @@ public class VRSyncApp {
     }
 
     public void iniciar() {
-        log.info("=== VR Sync v{} iniciando ===", (Object)"4.5.7");
+        log.info("=== VR Sync v{} iniciando ===", (Object)"4.5.8");
         log.info("Modo: {}", (Object)(this.isService ? "Servico Windows" : "Aplicacao"));
         try {
             AutoUpdater updater = new AutoUpdater();

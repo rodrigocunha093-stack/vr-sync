@@ -59,10 +59,12 @@ implements AutoCloseable {
             throw new SQLException("Conexao nao estabelecida");
         }
         long inicio = System.currentTimeMillis();
+        boolean pgTransaction = false;
         try (Statement stmt = this.conn.createStatement();){
             stmt.setQueryTimeout(120);
             if ("postgres".equalsIgnoreCase(this.tipo) && this.conn.getAutoCommit()) {
                 this.conn.setAutoCommit(false);
+                pgTransaction = true;
             }
             stmt.setFetchSize(5000);
             ResultSet rs = stmt.executeQuery(sql);
@@ -90,11 +92,17 @@ implements AutoCloseable {
             }
             long ms = System.currentTimeMillis() - inicio;
             log.info("{}: {} registros em {}ms", label, rows.size(), ms);
-            if ("postgres".equalsIgnoreCase(this.tipo)) {
+            if (pgTransaction) {
                 this.conn.setAutoCommit(true);
             }
             ArrayList<Map<String, Object>> arrayList = rows;
             return arrayList;
+        } catch (SQLException e) {
+            if (pgTransaction) {
+                try { this.conn.rollback(); } catch (SQLException ignored) {}
+                try { this.conn.setAutoCommit(true); } catch (SQLException ignored) {}
+            }
+            throw e;
         }
     }
 

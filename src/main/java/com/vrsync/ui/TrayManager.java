@@ -39,7 +39,7 @@ public class TrayManager {
         try {
             Image icon = this.criarIcone();
             PopupMenu menu = this.criarMenu();
-            this.trayIcon = new TrayIcon(icon, "VR Sync 4.4 - Aguardando", menu);
+            this.trayIcon = new TrayIcon(icon, "VR Sync 4.5 - Aguardando", menu);
             this.trayIcon.setImageAutoSize(true);
             this.trayIcon.addActionListener(e -> {
                 if (this.onAbrir != null) {
@@ -99,7 +99,7 @@ public class TrayManager {
         MenuItem sobreItem = new MenuItem("Sobre");
         sobreItem.addActionListener(e -> {
             if (this.trayIcon != null) {
-                this.trayIcon.displayMessage("VR Sync", "VR Sync v4.4.0\nCliente de sincronizacao\nEncarte Inteligente", TrayIcon.MessageType.INFO);
+                this.trayIcon.displayMessage("VR Sync", "VR Sync v4.5.0\nCliente de sincronizacao\nEncarte Inteligente", TrayIcon.MessageType.INFO);
             }
         });
         MenuItem sairItem = new MenuItem("Sair");

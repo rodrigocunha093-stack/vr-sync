@@ -34,7 +34,7 @@ public class VRSyncApp {
     }
 
     public void iniciar() {
-        log.info("=== VR Sync v{} iniciando ===", (Object)"4.5.9");
+        log.info("=== VR Sync v{} iniciando ===", (Object)"4.6.0");
         log.info("Modo: {}", (Object)(this.isService ? "Servico Windows" : "Aplicacao"));
         try {
             AutoUpdater updater = new AutoUpdater();
@@ -84,6 +84,16 @@ public class VRSyncApp {
     private void executarSync() {
         block3: {
             try {
+                java.util.List<String> modulos = null;
+                if (this.syncWindow != null) {
+                    modulos = this.syncWindow.getModulosSelecionados();
+                }
+                if (modulos == null && !this.isService) {
+                    modulos = this.trayManager.getModulosSelecionados();
+                }
+                if (modulos != null) {
+                    this.orchestrator.setModulosOverride(modulos);
+                }
                 this.orchestrator.executarSync(this.config);
                 String status = this.orchestrator.getStatus();
                 if (!this.isService) {

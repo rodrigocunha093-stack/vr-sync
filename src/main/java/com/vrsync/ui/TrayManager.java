@@ -15,6 +15,7 @@ import java.awt.RenderingHints;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,13 @@ public class TrayManager {
     private Runnable onSyncAgora;
     private Runnable onSair;
     private Runnable onAbrir;
+    private volatile List<String> modulosSelecionados;
+
+    public List<String> getModulosSelecionados() {
+        List<String> m = this.modulosSelecionados;
+        this.modulosSelecionados = null;
+        return m;
+    }
 
     public void setSyncWindow(Runnable onAbrir) {
         this.onAbrir = onAbrir;
@@ -87,7 +95,11 @@ public class TrayManager {
         MenuItem syncItem = new MenuItem("Sincronizar Agora");
         syncItem.addActionListener(e -> {
             if (this.onSyncAgora != null) {
-                new Thread(() -> this.onSyncAgora.run(), "sync-manual").start();
+                List<String> selecionados = ModuloSelector.mostrar(null);
+                if (selecionados != null) {
+                    this.modulosSelecionados = selecionados;
+                    new Thread(() -> this.onSyncAgora.run(), "sync-manual").start();
+                }
             }
         });
         MenuItem statusItem = new MenuItem("Status");
@@ -99,7 +111,7 @@ public class TrayManager {
         MenuItem sobreItem = new MenuItem("Sobre");
         sobreItem.addActionListener(e -> {
             if (this.trayIcon != null) {
-                this.trayIcon.displayMessage("VR Sync", "VR Sync v4.5.9\nCliente de sincronizacao\nEncarte Inteligente", TrayIcon.MessageType.INFO);
+                this.trayIcon.displayMessage("VR Sync", "VR Sync v4.6.0\nCliente de sincronizacao\nEncarte Inteligente", TrayIcon.MessageType.INFO);
             }
         });
         MenuItem sairItem = new MenuItem("Sair");

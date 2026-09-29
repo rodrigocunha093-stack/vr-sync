@@ -6,7 +6,7 @@
 
     <groupId>com.vrsync</groupId>
     <artifactId>vr-sync</artifactId>
-    <version>4.5.9</version>
+    <version>4.6.0</version>
     <packaging>jar</packaging>
 
     <name>VR Sync</name>

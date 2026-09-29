@@ -24,9 +24,14 @@ public class SyncOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(SyncOrchestrator.class);
     private static final int MAX_REGISTROS_MODULO = 200000;
     private volatile boolean rodando = false;
+    private volatile List<String> modulosOverride;
     private String status = "Aguardando";
     private Instant ultimoSync;
     private SyncListener listener;
+
+    public void setModulosOverride(List<String> modulos) {
+        this.modulosOverride = modulos;
+    }
 
     public void setListener(SyncListener listener) {
         this.listener = listener;
@@ -170,6 +175,12 @@ public class SyncOrchestrator {
     }
 
     private List<String> getModulos(JsonObject serverConfig) {
+        List<String> override = this.modulosOverride;
+        if (override != null) {
+            this.modulosOverride = null;
+            log.info("Sync manual: modulos selecionados pelo usuario: {}", (Object)override);
+            return override;
+        }
         if (serverConfig != null && serverConfig.has("modulos")) {
             JsonArray arr = serverConfig.getAsJsonArray("modulos");
             ArrayList<String> list = new ArrayList<String>();

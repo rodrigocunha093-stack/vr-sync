@@ -38,12 +38,13 @@ import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import java.util.List;
 
 public class SyncWindow
 extends JFrame
 implements SyncListener {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-    private static final String[] MODULOS_ORDEM = new String[]{"lojas", "mercadologico", "fornecedores", "produtos", "vendas", "estoque", "ofertas", "compras", "vendas_promocao", "cupom_itens", "margem", "precos"};
+    private static final String[] MODULOS_ORDEM = new String[]{"lojas", "mercadologico", "fornecedores", "produtos", "vendas", "estoque", "ofertas", "compras", "vendas_promocao", "cupom_itens", "margem", "precos", "precificados", "precificados_log"};
     private final AppConfig config;
     private Runnable onSyncAgora;
     private Runnable onSair;
@@ -56,8 +57,15 @@ implements SyncListener {
     private JButton btnSync;
     private JProgressBar progressBar;
     private final Map<String, Integer> moduloRow = new LinkedHashMap<String, Integer>();
+    private volatile List<String> modulosSelecionados;
     private int modulosProcessados = 0;
     private int totalModulos = 0;
+
+    public List<String> getModulosSelecionados() {
+        List<String> m = this.modulosSelecionados;
+        this.modulosSelecionados = null;
+        return m;
+    }
 
     public SyncWindow(AppConfig config) {
         this.config = config;
@@ -121,8 +129,12 @@ implements SyncListener {
         this.btnSync.setPreferredSize(new Dimension(150, 36));
         this.btnSync.addActionListener(e -> {
             if (this.onSyncAgora != null) {
-                this.btnSync.setEnabled(false);
-                new Thread(() -> this.onSyncAgora.run(), "sync-manual-ui").start();
+                List<String> selecionados = ModuloSelector.mostrar(this);
+                if (selecionados != null) {
+                    this.modulosSelecionados = selecionados;
+                    this.btnSync.setEnabled(false);
+                    new Thread(() -> this.onSyncAgora.run(), "sync-manual-ui").start();
+                }
             }
         });
         topo.add((Component)this.btnSync, "East");

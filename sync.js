@@ -653,20 +653,31 @@ async function extrairPrecificados() {
            pc.customediocomimposto,
            pc.custosemimposto,
            pc.customediosemimposto,
-           CASE WHEN pc.custocomimposto > 0 AND pc.precovenda > 0
-                THEN ROUND(((pc.precovenda - pc.custocomimposto) / pc.precovenda * 100)::numeric, 2)
-                ELSE 0 END AS margem_bruta_pct,
+           COALESCE(lp.margembruta,
+             CASE WHEN pc.custocomimposto > 0 AND pc.precovenda > 0
+                  THEN ROUND(((pc.precovenda - pc.custocomimposto) / pc.precovenda * 100)::numeric, 2)
+                  ELSE 0 END
+           ) AS margem_bruta_pct,
            CASE WHEN pc.custocomimposto > 0
                 THEN ROUND((pc.precovenda - pc.custocomimposto)::numeric, 2)
                 ELSE 0 END AS margem_bruta_rs,
-           CASE WHEN pc.custosemimposto > 0 AND pc.precovenda > 0
-                THEN ROUND(((pc.precovenda - pc.custosemimposto) / pc.precovenda * 100)::numeric, 2)
-                ELSE 0 END AS margem_liquida_pct,
+           COALESCE(lp.margemliquida,
+             CASE WHEN pc.custosemimposto > 0 AND pc.precovenda > 0
+                  THEN ROUND(((pc.precovenda - pc.custosemimposto) / pc.precovenda * 100)::numeric, 2)
+                  ELSE 0 END
+           ) AS margem_liquida_pct,
            CASE WHEN pc.custosemimposto > 0
                 THEN ROUND((pc.precovenda - pc.custosemimposto)::numeric, 2)
                 ELSE 0 END AS margem_liquida_rs,
            pc.estoque
     FROM public.produtocomplemento pc
+    LEFT JOIN LATERAL (
+      SELECT lp2.margembruta, lp2.margemliquida
+      FROM public.logpreco lp2
+      WHERE lp2.id_produto = pc.id_produto AND lp2.id_loja = pc.id_loja
+      ORDER BY lp2.datahora DESC
+      LIMIT 1
+    ) lp ON true
     WHERE pc.id_loja = $1
       AND pc.precovenda > 0
       AND pc.custocomimposto > 0

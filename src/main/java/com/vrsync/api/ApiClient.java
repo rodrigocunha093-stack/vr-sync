@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 public class ApiClient {
     private static final Logger log = LoggerFactory.getLogger(ApiClient.class);
     private static final int BATCH_SIZE = 500;
-    private static final int BATCH_SIZE_LARGE = 500;
+    private static final int BATCH_SIZE_LARGE = 1000;
     private static final Gson gson = new GsonBuilder().serializeNulls().create();
     private final String apiUrl;
     private final String apiToken;
@@ -76,7 +76,7 @@ public class ApiClient {
     public int enviarDados(String loja, String modulo, List<Map<String, Object>> dados, BatchProgress progress) {
         String url = this.apiUrl + "/api/sync/" + modulo;
         int total = dados.size();
-        int batchSize = total > 50000 ? BATCH_SIZE_LARGE : BATCH_SIZE;
+        int batchSize = total > 10000 ? BATCH_SIZE_LARGE : BATCH_SIZE;
         int lotes = (int)Math.ceil((double)total / (double)batchSize);
         int maxRetries = 3;
         int enviados = 0;

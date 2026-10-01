@@ -112,6 +112,15 @@ public class SyncOrchestrator {
                         log.error("Erro extraindo {}: {}", (Object)string, (Object)t.getMessage(), (Object)t);
                         String erroMsg = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
                         this.notificar(() -> this.listener.onModuloErro(string, erroMsg));
+                        if (!db.testarConexao()) {
+                            log.warn("Conexao perdida apos erro em {}. Tentando reconectar...", (Object)string);
+                            if (db.reconectar()) {
+                                log.info("Reconexao bem-sucedida, continuando com proximo modulo");
+                            } else {
+                                log.error("Reconexao falhou. Modulos restantes serao ignorados.");
+                                break;
+                            }
+                        }
                     }
                 }
             }

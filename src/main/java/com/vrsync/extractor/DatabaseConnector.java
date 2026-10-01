@@ -25,9 +25,19 @@ implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(DatabaseConnector.class);
     private Connection conn;
     private String tipo;
+    private String server;
+    private int port;
+    private String database;
+    private String user;
+    private String password;
 
     public void conectar(String server, int port, String database, String user, String password, String tipo) throws SQLException {
         this.tipo = tipo;
+        this.server = server;
+        this.port = port;
+        this.database = database;
+        this.user = user;
+        this.password = password;
         String url = "postgres".equalsIgnoreCase(tipo) ? String.format("jdbc:postgresql://%s:%d/%s", server, port, database) : String.format("jdbc:sqlserver://%s:%d;databaseName=%s;encrypt=false;trustServerCertificate=true", server, port, database);
         log.info("Conectando: {} ({})", (Object)url, (Object)tipo);
         try {
@@ -54,9 +64,30 @@ implements AutoCloseable {
         log.info("Conectado ao banco {} com sucesso", (Object)tipo);
     }
 
+    public boolean reconectar() {
+        if (this.server == null) {
+            log.warn("Reconexao impossivel: parametros de conexao nao armazenados");
+            return false;
+        }
+        log.info("Tentando reconectar ao banco {}...", (Object)this.tipo);
+        try {
+            if (this.conn != null) {
+                try { this.conn.close(); } catch (SQLException ignored) {}
+                this.conn = null;
+            }
+            this.conectar(this.server, this.port, this.database, this.user, this.password, this.tipo);
+            return true;
+        } catch (SQLException e) {
+            log.error("Falha ao reconectar: {}", (Object)e.getMessage());
+            return false;
+        }
+    }
+
     public List<Map<String, Object>> executar(String sql, String label) throws SQLException {
         if (this.conn == null || this.conn.isClosed()) {
-            throw new SQLException("Conexao nao estabelecida");
+            if (!reconectar()) {
+                throw new SQLException("Conexao nao estabelecida e reconexao falhou");
+            }
         }
         long inicio = System.currentTimeMillis();
         boolean pgTransaction = false;
@@ -138,4 +169,3 @@ implements AutoCloseable {
         }
     }
 }
-
